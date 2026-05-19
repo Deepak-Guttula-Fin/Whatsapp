@@ -1,0 +1,5 @@
+.env
+dailyxp.db
+node_modules/
+server.out.log
+server.err.log
