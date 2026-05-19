@@ -180,18 +180,17 @@ End-of-Day Report
 ```
 dailyxp-whatsapp-bot/
 ├── server.js          ← Express server + webhook
-├── src/
-│   ├── bot.js         ← Message handler + intent detection
-│   ├── tasks.js       ← Task/regret definitions + aliases
-│   ├── dashboard.js   ← WhatsApp text report formatter
-│   ├── excel.js       ← Excel report generator (ExcelJS)
-│   ├── db.js          ← SQLite data layer
-│   ├── whatsapp.js    ← Twilio sender
-│   └── scheduler.js   ← Cron jobs
-├── scripts/
-│   ├── test_excel.js      ← Test Excel without WhatsApp
-│   └── test_dashboard.js  ← Test dashboard text output
+├── bot.js             ← Message handler + intent detection
+├── tasks.js           ← Task/regret definitions + aliases
+├── dashboard.js       ← WhatsApp text report formatter
+├── excel.js           ← Excel report generator (ExcelJS)
+├── db.js              ← Firebase Firestore data layer
+├── whatsapp.js        ← Twilio sender
+├── scheduler.js       ← Cron jobs
+├── test_excel.js      ← Test Excel without WhatsApp
+├── test_dashboard.js  ← Test dashboard text output
 ├── .env.example
+├── render.yaml
 └── package.json
 ```
 
