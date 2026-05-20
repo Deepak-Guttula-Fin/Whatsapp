@@ -3,7 +3,7 @@
 //  Handles all incoming messages with dynamic NLP-style parsing
 // ============================================================
 
-const { getTodayRecord, upsertRecord, getRange } = require('./db');
+const { getTodayRecord, upsertRecord, getRange, deleteRecord, deleteTodayRecord, deleteAllRecords } = require('./db');
 const { buildDashboard }                          = require('./dashboard');
 const { generateExcel }                           = require('./excel');
 const { sendMessage, sendFile }                   = require('./whatsapp');
@@ -17,6 +17,10 @@ async function handleMessage(from, body) {
   const text  = body.trim();
   const lower = text.toLowerCase();
   const sess  = sessions[from] || (sessions[from] = {});
+
+  if (sess.resetFlow) {
+    return handleResetFlow(from, text, lower, sess);
+  }
 
   // ── 1. Awaiting HH:MM time for a learning task ──────────────
   if (sess.awaitingTime) {
@@ -48,6 +52,9 @@ async function handleMessage(from, body) {
   const intent = detectIntent(lower);
 
   switch (intent.type) {
+    case 'RESET':
+      sess.resetFlow = { step: 'choose' };
+      return sendMessage(from, resetMenuText());
 
     case 'HELP':
       return sendMessage(from, helpText());
@@ -177,6 +184,7 @@ function detectIntent(lower) {
   if (/\b(consolidated|full report|all time|history)\b/.test(lower)) return { type: 'CONSOLIDATED' };
   if (/\b(xp|points|my xp|today.?s xp)\b/.test(lower))        return { type: 'XP' };
   if (/\b(tasks|task list|all tasks|show tasks)\b/.test(lower)) return { type: 'TASKS_LIST' };
+  if (/\b(reset|wipe|clear data|clear all)\b/.test(lower))     return { type: 'RESET' };
 
   // Regret — "yes guilt" / "guilt yes" / "had guilt" / "i shouted"
   for (const [key, r] of Object.entries(REGRETS)) {
@@ -296,6 +304,93 @@ function taskListText() {
   for (const [k,r] of Object.entries(REGRETS))
     msg += `  • ${r.label} — *${r.xp} XP*\n`;
   return msg;
+}
+
+async function handleResetFlow(from, text, lower, sess) {
+  const flow = sess.resetFlow;
+
+  if (flow.step === 'choose') {
+    if (lower === '1' || /\b(day|today)\b/.test(lower)) {
+      await deleteTodayRecord(from);
+      delete sess.resetFlow;
+      return sendMessage(from, `✅ Today's data has been reset.`);
+    }
+
+    if (lower === '2' || /\b(particular|specific|date)\b/.test(lower)) {
+      flow.step = 'awaiting_date';
+      return sendMessage(from, `Send the date you want to reset in *DD/MM/YYYY* format, for example *20/05/2026*.`);
+    }
+
+    if (lower === '3' || /\b(everything|all)\b/.test(lower)) {
+      flow.step = 'awaiting_all_confirm';
+      return sendMessage(from, `This will delete *all* your saved data.\nReply *YES* to continue or *NO* to cancel.`);
+    }
+
+    return sendMessage(from, resetMenuText());
+  }
+
+  if (flow.step === 'awaiting_date') {
+    const parsed = parseDdMmYyyy(text);
+    if (!parsed) {
+      return sendMessage(from, `Please send the date in *DD/MM/YYYY* format, for example *20/05/2026*.`);
+    }
+
+    await deleteRecord(from, parsed.firestoreDate);
+    delete sess.resetFlow;
+    return sendMessage(from, `✅ Data for *${parsed.displayDate}* has been reset.`);
+  }
+
+  if (flow.step === 'awaiting_all_confirm') {
+    if (/^(yes|y|confirm)$/i.test(lower)) {
+      await deleteAllRecords(from);
+      delete sess.resetFlow;
+      return sendMessage(from, `✅ All your saved data has been reset.`);
+    }
+
+    if (/^(no|n|cancel)$/i.test(lower)) {
+      delete sess.resetFlow;
+      return sendMessage(from, `Reset cancelled.`);
+    }
+
+    return sendMessage(from, `Reply *YES* to delete everything or *NO* to cancel.`);
+  }
+
+  delete sess.resetFlow;
+  return sendMessage(from, `Reset cancelled.`);
+}
+
+function resetMenuText() {
+  return `♻️ *Reset Options*
+
+1. Reset for the day
+2. Reset for particular date
+3. Reset everything
+
+Reply with *1*, *2*, or *3*.`;
+}
+
+function parseDdMmYyyy(text) {
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+
+  const [, dd, mm, yyyy] = match;
+  const day = Number(dd);
+  const month = Number(mm);
+  const year = Number(yyyy);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return {
+    firestoreDate: `${yyyy}-${mm}-${dd}`,
+    displayDate: `${dd}/${mm}/${yyyy}`
+  };
 }
 
 module.exports = { handleMessage };

@@ -110,6 +110,25 @@ async function upsertRecord(phone, record) {
   );
 }
 
+async function deleteRecord(phone, date) {
+  await recordRef(phone, date).delete();
+}
+
+async function deleteTodayRecord(phone) {
+  await deleteRecord(phone, todayStr());
+}
+
+async function deleteAllRecords(phone) {
+  const snap = await getFirestore()
+    .collection('users')
+    .doc(phone)
+    .collection('records')
+    .get();
+
+  const deletes = snap.docs.map(doc => doc.ref.delete());
+  await Promise.all(deletes);
+}
+
 async function getRange(phone, startDate, endDate) {
   const result = [];
   const cur = new Date(startDate);
@@ -138,4 +157,4 @@ function normalizeRecord(record) {
   };
 }
 
-module.exports = { getTodayRecord, upsertRecord, getRange };
+module.exports = { getTodayRecord, upsertRecord, getRange, deleteRecord, deleteTodayRecord, deleteAllRecords };
