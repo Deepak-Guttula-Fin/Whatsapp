@@ -6,7 +6,7 @@
 const { getTodayRecord, upsertRecord, getRange, deleteRecord, deleteTodayRecord, deleteAllRecords } = require('./db');
 const { buildDashboard }                          = require('./dashboard');
 const { generateExcel }                           = require('./excel');
-const { sendMessage, sendFile }                   = require('./whatsapp');
+const { sendMessage, sendFile }                   = require('./messaging');
 const { TASKS, REGRETS, normalize }               = require('./tasks');
 
 // Per-user conversation state (in-memory; swap for Redis in prod)

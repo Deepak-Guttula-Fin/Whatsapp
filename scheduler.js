@@ -8,13 +8,26 @@ const cron = require('node-cron');
 const { getTodayRecord, getRange }       = require('./db');
 const { buildDashboard, formatDateTime } = require('./dashboard');
 const { generateExcel }                  = require('./excel');
-const { sendMessage, sendFile }          = require('./whatsapp');
+const { sendMessage, sendFile }          = require('./messaging');
 
 // ── Subscriber list ──────────────────────────────────────────
 // In production: load from DB.  Format: '+919XXXXXXXXX'
 function getSubscribers() {
   const env = process.env.SUBSCRIBERS || '';
   return env.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function getTelegramSubscribers() {
+  const env = process.env.TELEGRAM_SUBSCRIBERS || '';
+  return env.split(',').map(s => s.trim()).filter(Boolean).map(normalizeTelegramSubscriber);
+}
+
+function normalizeTelegramSubscriber(value) {
+  return value.startsWith('telegram:') ? value : `telegram:${value}`;
+}
+
+function getAllSubscribers() {
+  return [...getSubscribers(), ...getTelegramSubscribers()];
 }
 
 // ── Labels for each check-in time ────────────────────────────
@@ -37,7 +50,7 @@ const dailySchedules = [
 for (const { cron: expr, label } of dailySchedules) {
   cron.schedule(expr, async () => {
     console.log(`[Scheduler] ${label} — sending to all subscribers`);
-    for (const phone of getSubscribers()) {
+    for (const phone of getAllSubscribers()) {
       try {
         const record = await getTodayRecord(phone);
         const text   = buildDashboard(record, label);
@@ -57,7 +70,7 @@ cron.schedule('0 22 * * 0', async () => {
   start.setDate(now.getDate() - 6);  // Mon–Sun
   start.setHours(0,0,0,0);
 
-  for (const phone of getSubscribers()) {
+  for (const phone of getAllSubscribers()) {
     try {
       const rows = await getRange(phone, start, now);
       const buf  = await generateExcel(rows, `Weekly Report — ${fmtRange(start, now)}`);
@@ -84,7 +97,7 @@ cron.schedule('0 22 10,20,28,29,30,31 * *', async () => {
 
   console.log(`[Scheduler] ${label} — sending`);
 
-  for (const phone of getSubscribers()) {
+  for (const phone of getAllSubscribers()) {
     try {
       const rows = await getRange(phone, start, today);
       const buf  = await generateExcel(rows, label);
