@@ -15,11 +15,13 @@ function getFirestore() {
     const serviceAccount = loadServiceAccount();
     if (serviceAccount) {
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || serviceAccount.projectId || process.env.FIREBASE_PROJECT_ID
       });
     } else {
       admin.initializeApp({
-        credential: admin.credential.applicationDefault()
+        credential: admin.credential.applicationDefault(),
+        projectId: process.env.FIREBASE_PROJECT_ID
       });
     }
   }
@@ -29,18 +31,48 @@ function getFirestore() {
 }
 
 function loadServiceAccount() {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed.private_key) {
-      parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+  const raw = (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(stripWrappingQuotes(raw));
+      if (parsed.private_key) {
+        parsed.private_key = normalizePrivateKey(parsed.private_key);
+      }
+      return parsed;
+    } catch (err) {
+      throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ${err.message}`);
     }
-    return parsed;
-  } catch (err) {
-    throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ${err.message}`);
   }
+
+  const projectId = (process.env.FIREBASE_PROJECT_ID || '').trim();
+  const clientEmail = (process.env.FIREBASE_CLIENT_EMAIL || '').trim();
+  const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
+
+  if (projectId && clientEmail && privateKey) {
+    return {
+      project_id: projectId,
+      client_email: clientEmail,
+      private_key: normalizePrivateKey(privateKey)
+    };
+  }
+
+  return null;
+}
+
+function stripWrappingQuotes(value) {
+  const first = value[0];
+  const last = value[value.length - 1];
+  if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function normalizePrivateKey(value) {
+  return stripWrappingQuotes(String(value))
+    .replace(/\r\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .trim();
 }
 
 function todayStr() {
