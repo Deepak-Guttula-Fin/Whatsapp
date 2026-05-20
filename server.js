@@ -15,7 +15,9 @@ const fs       = require('fs');
 
 const { handleMessage } = require('./bot');
 require('./scheduler');              // registers all cron jobs on startup
-require('./telegram');               // starts Telegram bot if token is set
+const { startTelegramBot } = require('./telegram');
+
+startTelegramBot();                   // starts Telegram bot if token is set
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
