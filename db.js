@@ -100,14 +100,11 @@ async function getTodayRecord(phone) {
 async function upsertRecord(phone, record) {
   const date = record.date || todayStr();
   const data = normalizeRecord(record);
-  await recordRef(phone, date).set(
-    {
-      phone,
-      date,
-      ...data
-    },
-    { merge: true }
-  );
+  await recordRef(phone, date).set({
+    phone,
+    date,
+    ...data
+  });
 }
 
 async function deleteRecord(phone, date) {
