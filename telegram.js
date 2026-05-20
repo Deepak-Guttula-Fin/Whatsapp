@@ -40,13 +40,19 @@ function startTelegramBot() {
     }
   });
 
-  bot.action(/^task:([^:]+):(done|undone)$/, async (ctx) => {
+  bot.on('callback_query', async (ctx) => {
+    const data = ctx.callbackQuery?.data || '';
     const chatId = ctx.chat?.id;
-    const match = ctx.match || [];
-    const taskKey = match[1];
-    const action = match[2];
+    console.log('[Telegram] Callback received:', { chatId, data });
 
-    if (!chatId || !taskKey || !action || !TASKS[taskKey]) {
+    const match = data.match(/^task:([^:]+):(done|undone)$/);
+    if (!chatId || !match) {
+      await ctx.answerCbQuery('Unsupported action');
+      return;
+    }
+
+    const [, taskKey, action] = match;
+    if (!TASKS[taskKey]) {
       await ctx.answerCbQuery('Unknown task');
       return;
     }
