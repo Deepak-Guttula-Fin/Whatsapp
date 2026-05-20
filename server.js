@@ -40,6 +40,13 @@ app.post('/webhook', async (req, res) => {
   const from = req.body.From?.replace('whatsapp:', '') || req.body.from;
   const body = req.body.Body  || req.body.body || '';
 
+  console.log('[Webhook] Incoming message:', {
+    from,
+    body,
+    method: req.method,
+    url: req.originalUrl
+  });
+
   if (!from || !body) return res.status(400).send('Missing from/body');
 
   // Acknowledge immediately (Twilio 15s timeout)
