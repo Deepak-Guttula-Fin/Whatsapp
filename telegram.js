@@ -9,6 +9,7 @@ function startTelegramBot() {
     return null;
   }
 
+  console.log('[Telegram] Initializing bot...');
   const bot = new Telegraf(token);
   setTelegramBot(bot);
 
@@ -37,7 +38,12 @@ function startTelegramBot() {
 
   bot.launch()
     .then(() => console.log('[Telegram] Bot started'))
-    .catch((err) => console.error('[Telegram] Failed to start:', err));
+    .catch((err) => {
+      console.error('[Telegram] Failed to start:', err);
+      if (err && err.response && err.response.description) {
+        console.error('[Telegram] Launch error description:', err.response.description);
+      }
+    });
 
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
