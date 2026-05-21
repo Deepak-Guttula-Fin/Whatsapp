@@ -6,10 +6,20 @@ on:
     - cron: "30 16 * * 0"
     - cron: "30 16 10,20,28,29,30,31 * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which reminder job to run"
+        required: true
+        default: daily
+        type: choice
+        options:
+          - daily
+          - weekly
+          - monthly
 
 jobs:
   daily-reminders:
-    if: github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'daily'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,7 +44,7 @@ jobs:
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
 
   weekly-excel:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 16 * * 0'
+    if: github.event_name == 'schedule' && github.event.schedule == '30 16 * * 0' || github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'weekly'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -59,7 +69,7 @@ jobs:
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
 
   monthly-excel:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 16 10,20,28,29,30,31 * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '30 16 10,20,28,29,30,31 * *' || github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'monthly'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
