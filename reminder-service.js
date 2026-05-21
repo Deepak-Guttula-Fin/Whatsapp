@@ -89,8 +89,16 @@ async function sendDashboardToSubscribers(label) {
 }
 
 async function sendDailyRemindersNow() {
+  return sendDailyRemindersNowInternal(false);
+}
+
+async function sendDailyRemindersForce() {
+  return sendDailyRemindersNowInternal(true);
+}
+
+async function sendDailyRemindersNowInternal(force) {
   const now = getIstParts();
-  const state = await getSchedulerState(now.date);
+  const state = force ? { sentSlots: {} } : await getSchedulerState(now.date);
   const sentSlots = state.sentSlots || {};
 
   for (const slot of getReminderSlots()) {
@@ -178,6 +186,7 @@ function fmtRange(start, end) {
 
 module.exports = {
   sendDailyRemindersNow,
+  sendDailyRemindersForce,
   sendWeeklyExcel,
   sendMonthlyExcel,
   getReminderSlots,
