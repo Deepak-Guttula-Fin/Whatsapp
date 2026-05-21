@@ -14,8 +14,13 @@ const os       = require('os');
 const fs       = require('fs');
 
 const { handleMessage } = require('./bot');
-require('./scheduler');              // registers all cron jobs on startup
 const { startTelegramBot } = require('./telegram');
+
+if (process.env.ENABLE_INTERNAL_SCHEDULER !== 'false') {
+  require('./scheduler');            // registers cron jobs for local/dev use
+} else {
+  console.log('[Scheduler] Internal scheduler disabled');
+}
 
 startTelegramBot();                   // starts Telegram bot if token is set
 

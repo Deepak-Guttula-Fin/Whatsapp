@@ -87,6 +87,12 @@ function recordRef(phone, date = todayStr()) {
     .doc(date);
 }
 
+function schedulerStateRef(date = todayStr()) {
+  return getFirestore()
+    .collection('scheduler_state')
+    .doc(date);
+}
+
 async function getTodayRecord(phone) {
   const date = todayStr();
   const snap = await recordRef(phone, date).get();
@@ -145,6 +151,24 @@ async function getRange(phone, startDate, endDate) {
   return result;
 }
 
+async function getSchedulerState(date = todayStr()) {
+  const snap = await schedulerStateRef(date).get();
+  return snap.exists ? snap.data() : { sentSlots: {} };
+}
+
+async function markSchedulerSlotSent(date, slotKey) {
+  await schedulerStateRef(date).set(
+    {
+      date,
+      sentSlots: {
+        [slotKey]: true
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    },
+    { merge: true }
+  );
+}
+
 function normalizeRecord(record) {
   return {
     done: record.done || {},
@@ -154,4 +178,13 @@ function normalizeRecord(record) {
   };
 }
 
-module.exports = { getTodayRecord, upsertRecord, getRange, deleteRecord, deleteTodayRecord, deleteAllRecords };
+module.exports = {
+  getTodayRecord,
+  upsertRecord,
+  getRange,
+  deleteRecord,
+  deleteTodayRecord,
+  deleteAllRecords,
+  getSchedulerState,
+  markSchedulerSlotSent
+};
