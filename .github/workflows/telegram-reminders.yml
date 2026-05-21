@@ -1,0 +1,84 @@
+name: Telegram Reminders
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+    - cron: "30 16 * * 0"
+    - cron: "30 16 10,20,28,29,30,31 * *"
+  workflow_dispatch:
+
+jobs:
+  daily-reminders:
+    if: github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run daily Telegram reminders
+        run: node reminder-cron.js daily
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_SUBSCRIBERS: ${{ secrets.TELEGRAM_SUBSCRIBERS }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+
+  weekly-excel:
+    if: github.event_name == 'schedule' && github.event.schedule == '30 16 * * 0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run weekly Telegram Excel
+        run: node reminder-cron.js weekly
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_SUBSCRIBERS: ${{ secrets.TELEGRAM_SUBSCRIBERS }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+
+  monthly-excel:
+    if: github.event_name == 'schedule' && github.event.schedule == '30 16 10,20,28,29,30,31 * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run monthly Telegram Excel
+        run: node reminder-cron.js monthly
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_SUBSCRIBERS: ${{ secrets.TELEGRAM_SUBSCRIBERS }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}

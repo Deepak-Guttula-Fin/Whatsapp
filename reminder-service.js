@@ -1,11 +1,20 @@
+const { Telegraf } = require('telegraf');
 const { getTodayRecord, getRange, getSchedulerState, markSchedulerSlotSent } = require('./db');
 const { buildDashboard } = require('./dashboard');
 const { generateExcel } = require('./excel');
-const { sendMessage, sendFile } = require('./messaging');
 
-function getSubscribers() {
-  const env = process.env.SUBSCRIBERS || '';
-  return env.split(',').map(s => s.trim()).filter(Boolean);
+let telegramSender = null;
+
+function getTelegramSender() {
+  if (telegramSender) return telegramSender;
+
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    throw new Error('TELEGRAM_BOT_TOKEN is not set');
+  }
+
+  telegramSender = new Telegraf(token).telegram;
+  return telegramSender;
 }
 
 function getTelegramSubscribers() {
@@ -18,7 +27,7 @@ function normalizeTelegramSubscriber(value) {
 }
 
 function getAllSubscribers() {
-  return [...getSubscribers(), ...getTelegramSubscribers()];
+  return getTelegramSubscribers();
 }
 
 function getIstParts(date = new Date()) {
@@ -62,16 +71,17 @@ function isSlotDue(now, slot) {
 async function sendDashboardToSubscribers(label) {
   const subscribers = getAllSubscribers();
   if (!subscribers.length) {
-    console.log(`[Reminder] No subscribers configured for ${label}`);
+    console.log(`[Reminder] No Telegram subscribers configured for ${label}`);
     return;
   }
 
   console.log(`[Reminder] ${label} — sending to ${subscribers.length} subscriber(s)`);
+  const telegram = getTelegramSender();
   for (const recipient of subscribers) {
     try {
       const record = await getTodayRecord(recipient);
       const text = buildDashboard(record, label);
-      await sendMessage(recipient, text);
+      await telegram.sendMessage(telegramChatId(recipient), text, { parse_mode: 'Markdown' });
     } catch (err) {
       console.error(`[Reminder] Error for ${recipient}:`, err.message);
     }
@@ -105,7 +115,11 @@ async function sendWeeklyExcel() {
     try {
       const rows = await getRange(recipient, start, now);
       const buf = await generateExcel(rows, `Weekly Report — ${fmtRange(start, now)}`);
-      await sendFile(recipient, buf, 'weekly_report.xlsx', 'Weekly XP Report');
+      await getTelegramSender().sendDocument(
+        telegramChatId(recipient),
+        { source: buf, filename: 'weekly_report.xlsx' },
+        { caption: 'Weekly XP Report' }
+      );
     } catch (err) {
       console.error(`[Reminder] Weekly error for ${recipient}:`, err.message);
     }
@@ -130,11 +144,19 @@ async function sendMonthlyExcel() {
     try {
       const rows = await getRange(recipient, start, now);
       const buf = await generateExcel(rows, label);
-      await sendFile(recipient, buf, 'mtd_report.xlsx', label);
+      await getTelegramSender().sendDocument(
+        telegramChatId(recipient),
+        { source: buf, filename: 'mtd_report.xlsx' },
+        { caption: label }
+      );
     } catch (err) {
       console.error(`[Reminder] MTD error for ${recipient}:`, err.message);
     }
   }
+}
+
+function telegramChatId(value) {
+  return String(value).replace(/^telegram:/, '');
 }
 
 function lastDayOfMonth(date) {
