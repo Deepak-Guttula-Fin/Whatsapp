@@ -92,17 +92,18 @@ function buildDashboard(record, label) {
 }
 
 function formatDateTime(date) {
-  // MMM, DD-YYYY HH:MM AM/PM
-  const months = ['Jan','Feb','Mar','Apr','May','Jun',
-                  'Jul','Aug','Sep','Oct','Nov','Dec'];
-  const mon  = months[date.getMonth()];
-  const dd   = String(date.getDate()).padStart(2,'0');
-  const yyyy = date.getFullYear();
-  let h      = date.getHours();
-  const m    = String(date.getMinutes()).padStart(2,'0');
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h          = h % 12 || 12;
-  return `${mon}, ${dd}-${yyyy} ${h}:${m} ${ampm}`;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).formatToParts(date);
+
+  const map = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${map.month}, ${map.day}-${map.year} ${map.hour}:${map.minute} ${map.dayPeriod}`;
 }
 
 module.exports = { buildDashboard, formatDateTime };
