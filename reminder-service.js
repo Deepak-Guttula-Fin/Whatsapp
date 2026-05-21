@@ -71,11 +71,11 @@ function isSlotDue(now, slot) {
 async function sendDashboardToSubscribers(label) {
   const subscribers = getAllSubscribers();
   if (!subscribers.length) {
-    console.log(`[Reminder] No Telegram subscribers configured for ${label}`);
-    return;
+    throw new Error(`No Telegram subscribers configured for ${label}`);
   }
 
   console.log(`[Reminder] ${label} — sending to ${subscribers.length} subscriber(s)`);
+  console.log(`[Reminder] Telegram subscribers: ${subscribers.join(', ')}`);
   const telegram = getTelegramSender();
   for (const recipient of subscribers) {
     try {
@@ -109,7 +109,11 @@ async function sendWeeklyExcel() {
   start.setHours(0, 0, 0, 0);
 
   const subscribers = getAllSubscribers();
+  if (!subscribers.length) {
+    throw new Error('No Telegram subscribers configured for weekly Excel');
+  }
   console.log(`[Reminder] Weekly Excel — sending to ${subscribers.length} subscriber(s)`);
+  console.log(`[Reminder] Telegram subscribers: ${subscribers.join(', ')}`);
 
   for (const recipient of subscribers) {
     try {
@@ -138,7 +142,11 @@ async function sendMonthlyExcel() {
     : `MTD — Full Month (1st to ${eom}th)`;
 
   const subscribers = getAllSubscribers();
+  if (!subscribers.length) {
+    throw new Error('No Telegram subscribers configured for monthly Excel');
+  }
   console.log(`[Reminder] ${label} — sending to ${subscribers.length} subscriber(s)`);
+  console.log(`[Reminder] Telegram subscribers: ${subscribers.join(', ')}`);
 
   for (const recipient of subscribers) {
     try {
