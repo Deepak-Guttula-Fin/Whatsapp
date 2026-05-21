@@ -18,8 +18,7 @@ on:
           - monthly
 
 jobs:
-  daily-reminders:
-    if: github.event_name == 'schedule' && github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'daily'
+  run-reminder:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,58 +33,24 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Run daily Telegram reminders
-        run: node reminder-cron.js daily
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_SUBSCRIBERS: ${{ secrets.TELEGRAM_SUBSCRIBERS }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+      - name: Determine mode
+        id: mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "*/15 * * * *" ]; then
+            echo "mode=daily" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 16 * * 0" ]; then
+            echo "mode=weekly" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 16 10,20,28,29,30,31 * *" ]; then
+            echo "mode=monthly" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=daily" >> "$GITHUB_OUTPUT"
+          fi
 
-  weekly-excel:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 16 * * 0' || github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'weekly'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24.14.1'
-          cache: npm
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Run weekly Telegram Excel
-        run: node reminder-cron.js weekly
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_SUBSCRIBERS: ${{ secrets.TELEGRAM_SUBSCRIBERS }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
-
-  monthly-excel:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 16 10,20,28,29,30,31 * *' || github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'monthly'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24.14.1'
-          cache: npm
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Run monthly Telegram Excel
-        run: node reminder-cron.js monthly
+      - name: Run reminder
+        run: node reminder-cron.js "${{ steps.mode.outputs.mode }}"
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_SUBSCRIBERS: ${{ secrets.TELEGRAM_SUBSCRIBERS }}
