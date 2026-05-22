@@ -95,6 +95,10 @@ function schedulerStateRef(date = todayStr()) {
 
 async function getTodayRecord(phone) {
   const date = todayStr();
+  return getRecord(phone, date);
+}
+
+async function getRecord(phone, date) {
   const snap = await recordRef(phone, date).get();
   const rec = snap.exists
     ? snap.data()
@@ -180,6 +184,7 @@ function normalizeRecord(record) {
 
 module.exports = {
   getTodayRecord,
+  getRecord,
   upsertRecord,
   getRange,
   deleteRecord,

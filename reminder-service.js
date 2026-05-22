@@ -1,7 +1,8 @@
 const { Telegraf } = require('telegraf');
-const { getTodayRecord, getRange, getSchedulerState, markSchedulerSlotSent } = require('./db');
+const { getTodayRecord, getRecord, getRange, getSchedulerState, markSchedulerSlotSent } = require('./db');
 const { buildDashboard } = require('./dashboard');
 const { generateExcel } = require('./excel');
+const { getTaskSections } = require('./tasks');
 
 let telegramSender = null;
 
@@ -83,8 +84,9 @@ async function sendDashboardToSubscribers(label) {
   const telegram = getTelegramSender();
   for (const recipient of subscribers) {
     try {
-      const record = await getTodayRecord(recipient);
-      const text = buildDashboard(record, label);
+      const text = label === 'Morning Check-in'
+        ? await buildMorningCarryoverMessage(recipient)
+        : buildDashboard(await getTodayRecord(recipient), label);
       await telegram.sendMessage(telegramChatId(recipient), text, { parse_mode: 'Markdown' });
     } catch (err) {
       console.error(`[Reminder] Error for ${recipient}:`, err.message);
@@ -197,6 +199,43 @@ async function sendMonthlyExcel() {
 
 function telegramChatId(value) {
   return String(value).replace(/^telegram:/, '');
+}
+
+async function buildMorningCarryoverMessage(recipient) {
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const yesterdayKey = yesterday.toISOString().slice(0, 10);
+  const yesterdayRecord = await getRecord(recipient, yesterdayKey);
+  const sections = getTaskSections(yesterday);
+
+  const carryoverSections = [];
+  for (const section of sections) {
+    const pending = section.tasks.filter(([key]) => !yesterdayRecord.done?.[key]);
+    if (pending.length > 0) {
+      carryoverSections.push({
+        label: section.label,
+        tasks: pending
+      });
+    }
+  }
+
+  let msg = `📋 *Morning Check-in*\n`;
+  msg += `⏮ *Yesterday's unfinished tasks*\n\n`;
+
+  if (!carryoverSections.length) {
+    msg += `_(All tasks from yesterday were completed.)_`;
+    return msg;
+  }
+
+  for (const section of carryoverSections) {
+    msg += `*${section.label}*\n`;
+    for (const [, task] of section.tasks) {
+      msg += `  • ${task.label} — *+${task.xp >= 0 ? '+' : ''}${task.xp} XP*\n`;
+    }
+    msg += '\n';
+  }
+
+  msg += `_Continue these today to clear yesterday's backlog._`;
+  return msg;
 }
 
 function lastDayOfMonth(date) {
