@@ -4,6 +4,8 @@ const {
   sendDailyRemindersNow,
   sendDailyRemindersForce,
   sendReminderSlot,
+  sendMoodPromptSlot,
+  sendAllMoodPromptSlots,
   sendWeeklyExcel,
   sendMonthlyExcel
 } = require('./reminder-service');
@@ -18,6 +20,13 @@ async function main() {
       await sendDailyRemindersForce();
     } else if (mode === 'morning' || mode === 'afternoon' || mode === 'evening' || mode === 'night') {
       await sendReminderSlot(mode);
+    } else if (mode.startsWith('mood-')) {
+      const slotKey = mode.replace(/^mood-/, '');
+      if (slotKey === 'force') {
+        await sendAllMoodPromptSlots(true);
+      } else {
+        await sendMoodPromptSlot(slotKey, false);
+      }
     } else if (mode === 'weekly') {
       await sendWeeklyExcel();
     } else if (mode === 'monthly') {

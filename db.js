@@ -79,6 +79,18 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function istTodayStr() {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+
+  const map = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
 function recordRef(phone, date = todayStr()) {
   return getFirestore()
     .collection('users')
@@ -90,6 +102,14 @@ function recordRef(phone, date = todayStr()) {
 function schedulerStateRef(date = todayStr()) {
   return getFirestore()
     .collection('scheduler_state')
+    .doc(date);
+}
+
+function moodRecordRef(phone, date = istTodayStr()) {
+  return getFirestore()
+    .collection('users')
+    .doc(phone)
+    .collection('moods')
     .doc(date);
 }
 
@@ -155,6 +175,64 @@ async function getRange(phone, startDate, endDate) {
   return result;
 }
 
+async function getMoodRecord(phone, date = istTodayStr()) {
+  const snap = await moodRecordRef(phone, date).get();
+  const rec = snap.exists
+    ? snap.data()
+    : { slots: {}, average: null };
+
+  return {
+    date,
+    slots: rec.slots || {},
+    average: rec.average ?? null
+  };
+}
+
+async function upsertMoodEntry(phone, date, slotKey, mood) {
+  const current = await getMoodRecord(phone, date);
+  const slots = { ...(current.slots || {}) };
+  slots[slotKey] = {
+    key: mood.key,
+    label: mood.label,
+    emoji: mood.emoji,
+    score: mood.score,
+    slotLabel: mood.slotLabel || null,
+    selectedAt: mood.selectedAt || new Date().toISOString()
+  };
+
+  const scores = Object.values(slots)
+    .map(entry => Number(entry.score))
+    .filter(score => Number.isFinite(score));
+
+  const average = scores.length
+    ? Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(2))
+    : null;
+
+  await moodRecordRef(phone, date).set({
+    phone,
+    date,
+    slots,
+    average,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return { date, slots, average };
+}
+
+async function getMoodRange(phone, startDate, endDate) {
+  const result = [];
+  const cur = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (cur <= end) {
+    const date = cur.toISOString().slice(0, 10);
+    result.push(await getMoodRecord(phone, date));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  return result;
+}
+
 async function getSchedulerState(date = todayStr()) {
   const snap = await schedulerStateRef(date).get();
   return snap.exists ? snap.data() : { sentSlots: {} };
@@ -187,6 +265,9 @@ module.exports = {
   getRecord,
   upsertRecord,
   getRange,
+  getMoodRecord,
+  upsertMoodEntry,
+  getMoodRange,
   deleteRecord,
   deleteTodayRecord,
   deleteAllRecords,

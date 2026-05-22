@@ -3,7 +3,7 @@
 //  Handles all incoming messages with dynamic NLP-style parsing
 // ============================================================
 
-const { getTodayRecord, upsertRecord, getRange, deleteRecord, deleteTodayRecord, deleteAllRecords } = require('./db');
+const { getTodayRecord, upsertRecord, getRange, getMoodRange, deleteRecord, deleteTodayRecord, deleteAllRecords } = require('./db');
 const { buildDashboard }                          = require('./dashboard');
 const { generateExcel }                           = require('./excel');
 const { sendMessage, sendFile }                   = require('./messaging');
@@ -246,22 +246,33 @@ async function handleWeekly(from) {
   const now   = new Date();
   const start = new Date(now); start.setDate(now.getDate() - now.getDay() + 1); // Mon
   start.setHours(0,0,0,0);
-  const rows = await getRange(from, start, now);
-  const buf  = await generateExcel(rows, 'Weekly Report');
+  const [rows, moods] = await Promise.all([
+    getRange(from, start, now),
+    getMoodRange(from, start, now)
+  ]);
+  const buf  = await generateExcel(rows, 'Weekly Report', { moodRecords: moods });
   return sendFile(from, buf, 'weekly_report.xlsx', 'Weekly XP Report');
 }
 
 async function handleMTD(from) {
   const now   = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const rows  = await getRange(from, start, now);
-  const buf   = await generateExcel(rows, `MTD Report — ${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}`);
+  const [rows, moods] = await Promise.all([
+    getRange(from, start, now),
+    getMoodRange(from, start, now)
+  ]);
+  const buf   = await generateExcel(rows, `MTD Report — ${now.toLocaleString('default',{month:'long'})} ${now.getFullYear()}`, { moodRecords: moods });
   return sendFile(from, buf, 'mtd_report.xlsx', 'MTD XP Report');
 }
 
 async function handleConsolidated(from) {
-  const rows = await getRange(from, new Date('2024-01-01'), new Date());
-  const buf  = await generateExcel(rows, 'Consolidated Report — All Time');
+  const start = new Date('2024-01-01');
+  const now = new Date();
+  const [rows, moods] = await Promise.all([
+    getRange(from, start, now),
+    getMoodRange(from, start, now)
+  ]);
+  const buf  = await generateExcel(rows, 'Consolidated Report — All Time', { moodRecords: moods });
   return sendFile(from, buf, 'consolidated_report.xlsx', 'Full Consolidated XP Report');
 }
 
@@ -286,6 +297,10 @@ function helpText() {
 • *consolidated* — all-time Excel
 • *xp* — quick XP check
 • *tasks* — full task list
+
+*Mood tracker (Telegram):*
+• automatic mood prompts at 10:00 AM, 2:00 PM, 4:00 PM, 6:00 PM, and 10:00 PM
+• mood selections are saved into the Excel workbook
 
 *Undo:* _undo workout_ / _remove sleep_`;
 }

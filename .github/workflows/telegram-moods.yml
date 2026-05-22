@@ -1,0 +1,68 @@
+name: Telegram Mood Tracker
+
+on:
+  schedule:
+    - cron: "30 4 * * *"   # 10:00 AM IST
+    - cron: "30 8 * * *"   # 2:00 PM IST
+    - cron: "30 10 * * *"  # 4:00 PM IST
+    - cron: "30 12 * * *"  # 6:00 PM IST
+    - cron: "30 16 * * *"  # 10:00 PM IST
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which mood prompt to run"
+        required: true
+        default: mood-1000
+        type: choice
+        options:
+          - mood-1000
+          - mood-1400
+          - mood-1600
+          - mood-1800
+          - mood-2200
+          - mood-force
+
+jobs:
+  run-mood:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Determine mode
+        id: mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 4 * * *" ]; then
+            echo "mode=mood-1000" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 8 * * *" ]; then
+            echo "mode=mood-1400" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 10 * * *" ]; then
+            echo "mode=mood-1600" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 12 * * *" ]; then
+            echo "mode=mood-1800" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 16 * * *" ]; then
+            echo "mode=mood-2200" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=mood-1000" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run mood prompt
+        run: node reminder-cron.js "${{ steps.mode.outputs.mode }}"
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_SUBSCRIBERS: ${{ secrets.TELEGRAM_SUBSCRIBERS }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}

@@ -2,6 +2,8 @@ const { Telegraf, Markup } = require('telegraf');
 const { handleMessage } = require('./bot');
 const { TASKS, getTaskSections } = require('./tasks');
 const { setTelegramBot } = require('./messaging');
+const { upsertMoodEntry } = require('./db');
+const { getMoodOption, getMoodSlot, getIstDateKey, buildMoodSavedText } = require('./mood');
 
 function startTelegramBot() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -46,30 +48,66 @@ function startTelegramBot() {
     console.log('[Telegram] Callback received:', { chatId, data });
 
     const match = data.match(/^task:([^:]+):(done|undone)$/);
-    if (!chatId || !match) {
-      await ctx.answerCbQuery('Unsupported action');
+    if (chatId && match) {
+      const [, taskKey, action] = match;
+      if (!TASKS[taskKey]) {
+        await ctx.answerCbQuery('Unknown task');
+        return;
+      }
+
+      const from = `telegram:${chatId}`;
+      const label = TASKS[taskKey].label;
+
+      try {
+        await ctx.answerCbQuery(action === 'done' ? 'Marked accomplished' : 'Marked unaccomplished');
+        if (action === 'done') {
+          await handleMessage(from, taskKey);
+        } else {
+          await handleMessage(from, `undo ${taskKey}`);
+        }
+      } catch (err) {
+        console.error('[Telegram] Callback error:', err);
+        await ctx.reply(`Sorry, I couldn't update *${label}* right now.`);
+      }
       return;
     }
-
-    const [, taskKey, action] = match;
-    if (!TASKS[taskKey]) {
-      await ctx.answerCbQuery('Unknown task');
-      return;
-    }
-
-    const from = `telegram:${chatId}`;
-    const label = TASKS[taskKey].label;
 
     try {
-      await ctx.answerCbQuery(action === 'done' ? 'Marked accomplished' : 'Marked unaccomplished');
-      if (action === 'done') {
-        await handleMessage(from, taskKey);
-      } else {
-        await handleMessage(from, `undo ${taskKey}`);
+      const moodMatch = data.match(/^mood:([^:]+):([^:]+)$/);
+      if (!chatId || !moodMatch) {
+        await ctx.answerCbQuery('Unsupported action');
+        return;
+      }
+
+      const [, slotKey, moodKey] = moodMatch;
+      const slot = getMoodSlot(slotKey);
+      const mood = getMoodOption(moodKey);
+      if (!slot || !mood) {
+        await ctx.answerCbQuery('Unknown mood option');
+        return;
+      }
+
+      const from = `telegram:${chatId}`;
+      const dateKey = getIstDateKey();
+      const result = await upsertMoodEntry(from, dateKey, slot.key, {
+        key: mood.key,
+        label: mood.label,
+        emoji: mood.emoji,
+        score: mood.score,
+        slotLabel: slot.label,
+        selectedAt: new Date().toISOString()
+      });
+
+      const savedText = buildMoodSavedText(slot, mood, dateKey, result.average);
+      await ctx.answerCbQuery(`Saved ${mood.label}`);
+      try {
+        await ctx.editMessageText(savedText, { parse_mode: 'Markdown' });
+      } catch {
+        await ctx.reply(savedText, { parse_mode: 'Markdown' });
       }
     } catch (err) {
-      console.error('[Telegram] Callback error:', err);
-      await ctx.reply(`Sorry, I couldn't update *${label}* right now.`);
+      console.error('[Telegram] Mood callback error:', err);
+      await ctx.answerCbQuery('Could not save mood');
     }
   });
 
