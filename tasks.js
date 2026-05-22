@@ -34,6 +34,12 @@ const TASKS = {
     xp:       10,
     aliases:  ['healthy food', 'clean eating', 'diet', 'ate healthy', 'good food', 'nutrition']
   },
+  hygiene: {
+    label:    'Personal Hygiene',
+    category: 'health',
+    xp:       20,
+    aliases:  ['hygiene', 'personal care', 'self care', 'grooming', 'personal hygiene']
+  },
 
   // ── Learning ─────────────────────────────────────────────
   reading: {
@@ -60,6 +66,18 @@ const TASKS = {
     xp:       15,
     aliases:  ['listen', 'listened', 'podcast', 'audio', 'listening session']
   },
+  notes_revision: {
+    label:    'Notes Revision',
+    category: 'learning',
+    xp:       10,
+    aliases:  ['revise notes', 'notes review', 'review notes', 'revision']
+  },
+  financial_concept: {
+    label:    'Learn One Financial Concept',
+    category: 'learning',
+    xp:       20,
+    aliases:  ['financial concept', 'learn finance', 'learn one finance concept', 'finance concept']
+  },
 
   // ── Finance ──────────────────────────────────────────────
   portfolio: {
@@ -73,6 +91,15 @@ const TASKS = {
     category: 'finance',
     xp:       15,
     aliases:  ['economics', 'economy', 'news', 'financial news', 'market news', 'economic update']
+  },
+
+  // â”€â”€ Weekend Exploration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  weekend_exploration: {
+    label:    'Explore Something New',
+    category: 'bonus',
+    xp:       30,
+    weekendOnly: true,
+    aliases:  ['explore', 'explore new', 'weekend exploration', 'bonus challenge', 'something new']
   }
 };
 
@@ -96,6 +123,21 @@ const REGRETS = {
     label:   'Unnecessary Expenses',
     xp:      -20,
     aliases: ['overspent', 'wasted money', 'impulse buy', 'unnecessary spending', 'useless purchase']
+  },
+  instagram: {
+    label:   'Instagram Usage Above 2 Hours',
+    xp:      -10,
+    aliases: ['instagram', 'too much instagram', 'social media', 'scrolling instagram']
+  },
+  junk_food: {
+    label:   'Junk Food Consumption',
+    xp:      -15,
+    aliases: ['junk food', 'fast food', 'unhealthy snacks', 'eating junk']
+  },
+  missed_task: {
+    label:   'Missed Important Task',
+    xp:      -20,
+    aliases: ['missed task', 'important task missed', 'skipped task', 'forgot important task']
   }
 };
 
@@ -104,4 +146,36 @@ function normalize(str) {
   return str.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
 }
 
-module.exports = { TASKS, REGRETS, normalize };
+function isWeekend(date = new Date()) {
+  const day = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short'
+  }).format(date);
+  return day === 'Sat' || day === 'Sun';
+}
+
+function getVisibleTaskEntries(date = new Date()) {
+  return Object.entries(TASKS).filter(([, task]) => {
+    if (!task.weekendOnly) return true;
+    return isWeekend(date);
+  });
+}
+
+function getTaskSections(date = new Date()) {
+  const entries = getVisibleTaskEntries(date);
+  const order = [
+    { category: 'health', label: '💪 Physical Health' },
+    { category: 'learning', label: '📚 Learning' },
+    { category: 'finance', label: '💰 Finance' },
+    { category: 'bonus', label: '🌍 Weekend Exploration - Weekly Bonus Challenge' }
+  ];
+
+  return order
+    .map(section => ({
+      ...section,
+      tasks: entries.filter(([, task]) => task.category === section.category)
+    }))
+    .filter(section => section.tasks.length > 0);
+}
+
+module.exports = { TASKS, REGRETS, normalize, isWeekend, getVisibleTaskEntries, getTaskSections };

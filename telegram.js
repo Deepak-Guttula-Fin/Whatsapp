@@ -1,6 +1,6 @@
 const { Telegraf, Markup } = require('telegraf');
 const { handleMessage } = require('./bot');
-const { TASKS } = require('./tasks');
+const { TASKS, getTaskSections } = require('./tasks');
 const { setTelegramBot } = require('./messaging');
 
 function startTelegramBot() {
@@ -93,19 +93,12 @@ function startTelegramBot() {
 }
 
 function buildTaskMenuText() {
-  const groups = [
-    ['Physical Health', ['workout', 'hydration', 'sleep', 'shower', 'eating']],
-    ['Learning', ['reading', 'speaking', 'writing', 'listening']],
-    ['Finance', ['portfolio', 'economic']]
-  ];
-
   let message = '📋 *Task Board*\n\nTap *Accomplished* or *Unaccomplished* for any task.\nIf you mark a learning task as accomplished, I will ask for the time spent.\n\n';
 
-  for (const [title, keys] of groups) {
-    message += `*${title}*\n`;
-    for (const key of keys) {
-      const task = TASKS[key];
-      if (task) message += `• ${task.label}\n`;
+  for (const section of getTaskSections()) {
+    message += `*${section.label}*\n`;
+    for (const [, task] of section.tasks) {
+      message += `• ${task.label}\n`;
     }
     message += '\n';
   }
@@ -114,10 +107,15 @@ function buildTaskMenuText() {
 }
 
 function buildTaskKeyboard() {
-  const rows = Object.entries(TASKS).map(([key, task]) => ([
-    Markup.button.callback(`✅ ${task.label}`, `task:${key}:done`),
-    Markup.button.callback(`❌ ${task.label}`, `task:${key}:undone`)
-  ]));
+  const rows = [];
+  for (const section of getTaskSections()) {
+    for (const [key, task] of section.tasks) {
+      rows.push([
+        Markup.button.callback(`✅ ${task.label}`, `task:${key}:done`),
+        Markup.button.callback(`❌ ${task.label}`, `task:${key}:undone`)
+      ]);
+    }
+  }
 
   return Markup.inlineKeyboard(rows);
 }

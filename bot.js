@@ -7,7 +7,7 @@ const { getTodayRecord, upsertRecord, getRange, deleteRecord, deleteTodayRecord,
 const { buildDashboard }                          = require('./dashboard');
 const { generateExcel }                           = require('./excel');
 const { sendMessage, sendFile }                   = require('./messaging');
-const { TASKS, REGRETS, normalize }               = require('./tasks');
+const { TASKS, REGRETS, normalize, getTaskSections } = require('./tasks');
 
 // Per-user conversation state (in-memory; swap for Redis in prod)
 const sessions = {};
@@ -292,17 +292,16 @@ function helpText() {
 
 function taskListText() {
   let msg = `📋 *All Tasks & XP*\n\n`;
-  const cats = { health:'💪 Physical Health', learning:'📚 Learning', finance:'💰 Finance' };
-  for (const [cat, label] of Object.entries(cats)) {
-    msg += `*${label}*\n`;
-    for (const [k,t] of Object.entries(TASKS)) {
-      if (t.category === cat) msg += `  • ${t.label} — *+${t.xp} XP*\n`;
+  for (const section of getTaskSections()) {
+    msg += `*${section.label}*\n`;
+    for (const [, task] of section.tasks) {
+      msg += `  • ${task.label} — *+${task.xp} XP*\n`;
     }
     msg += '\n';
   }
   msg += `*😔 Regrets*\n`;
   for (const [k,r] of Object.entries(REGRETS))
-    msg += `  • ${r.label} — *${r.xp} XP*\n`;
+      msg += `  • ${r.label} — *${r.xp} XP*\n`;
   return msg;
 }
 
