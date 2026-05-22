@@ -3,6 +3,7 @@ require('dotenv').config();
 const {
   sendDailyRemindersNow,
   sendDailyRemindersForce,
+  sendReminderSlot,
   sendWeeklyExcel,
   sendMonthlyExcel
 } = require('./reminder-service');
@@ -15,6 +16,8 @@ async function main() {
       await sendDailyRemindersNow();
     } else if (mode === 'force') {
       await sendDailyRemindersForce();
+    } else if (mode === 'morning' || mode === 'afternoon' || mode === 'evening' || mode === 'night') {
+      await sendReminderSlot(mode);
     } else if (mode === 'weekly') {
       await sendWeeklyExcel();
     } else if (mode === 'monthly') {

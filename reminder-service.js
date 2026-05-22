@@ -58,6 +58,10 @@ function getReminderSlots() {
   ];
 }
 
+function getReminderSlot(slotKey) {
+  return getReminderSlots().find(slot => slot.key === slotKey) || null;
+}
+
 function slotTimeKey(slot) {
   return `${String(slot.hour).padStart(2, '0')}:${String(slot.minute).padStart(2, '0')}`;
 }
@@ -94,6 +98,26 @@ async function sendDailyRemindersNow() {
 
 async function sendDailyRemindersForce() {
   return sendDailyRemindersNowInternal(true);
+}
+
+async function sendReminderSlot(slotKey, force = false) {
+  const slot = getReminderSlot(slotKey);
+  if (!slot) {
+    throw new Error(`Unknown reminder slot: ${slotKey}`);
+  }
+
+  const now = getIstParts();
+  const state = force ? { sentSlots: {} } : await getSchedulerState(now.date);
+  const sentSlots = state.sentSlots || {};
+  if (!force && sentSlots[slot.key]) {
+    console.log(`[Reminder] ${slot.label} already sent for ${now.date}`);
+    return;
+  }
+
+  await sendDashboardToSubscribers(slot.label);
+  if (!force) {
+    await markSchedulerSlotSent(now.date, slot.key);
+  }
 }
 
 async function sendDailyRemindersNowInternal(force) {
@@ -187,6 +211,7 @@ function fmtRange(start, end) {
 module.exports = {
   sendDailyRemindersNow,
   sendDailyRemindersForce,
+  sendReminderSlot,
   sendWeeklyExcel,
   sendMonthlyExcel,
   getReminderSlots,

@@ -2,7 +2,10 @@ name: Telegram Reminders
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "30 3 * * *"
+    - cron: "30 9 * * *"
+    - cron: "30 12 * * *"
+    - cron: "30 16 * * *"
     - cron: "30 16 * * 0"
     - cron: "30 16 10,20,28,29,30,31 * *"
   workflow_dispatch:
@@ -10,10 +13,13 @@ on:
       mode:
         description: "Which reminder job to run"
         required: true
-        default: daily
+        default: morning
         type: choice
         options:
-          - daily
+          - morning
+          - afternoon
+          - evening
+          - night
           - force
           - weekly
           - monthly
@@ -40,14 +46,20 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "*/15 * * * *" ]; then
-            echo "mode=daily" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 3 * * *" ]; then
+            echo "mode=morning" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 9 * * *" ]; then
+            echo "mode=afternoon" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 12 * * *" ]; then
+            echo "mode=evening" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "30 16 * * *" ]; then
+            echo "mode=night" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "30 16 * * 0" ]; then
             echo "mode=weekly" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "30 16 10,20,28,29,30,31 * *" ]; then
             echo "mode=monthly" >> "$GITHUB_OUTPUT"
           else
-            echo "mode=daily" >> "$GITHUB_OUTPUT"
+            echo "mode=morning" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run reminder
