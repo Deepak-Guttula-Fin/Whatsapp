@@ -2,19 +2,16 @@ name: Telegram Mood Tracker
 
 on:
   schedule:
-    - cron: "30 4 * * *"   # 10:00 AM IST
-    - cron: "30 8 * * *"   # 2:00 PM IST
-    - cron: "30 10 * * *"  # 4:00 PM IST
-    - cron: "30 12 * * *"  # 6:00 PM IST
-    - cron: "30 16 * * *"  # 10:00 PM IST
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       mode:
         description: "Which mood prompt to run"
         required: true
-        default: mood-1000
+        default: mood-scan
         type: choice
         options:
+          - mood-scan
           - mood-1000
           - mood-1400
           - mood-1600
@@ -44,18 +41,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "30 4 * * *" ]; then
-            echo "mode=mood-1000" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "30 8 * * *" ]; then
-            echo "mode=mood-1400" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "30 10 * * *" ]; then
-            echo "mode=mood-1600" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "30 12 * * *" ]; then
-            echo "mode=mood-1800" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "30 16 * * *" ]; then
-            echo "mode=mood-2200" >> "$GITHUB_OUTPUT"
           else
-            echo "mode=mood-1000" >> "$GITHUB_OUTPUT"
+            echo "mode=mood-scan" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run mood prompt

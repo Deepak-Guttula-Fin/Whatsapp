@@ -78,6 +78,12 @@ function isSlotDue(now, slot) {
   return true;
 }
 
+function isMoodSlotDue(now, slot) {
+  if (now.hour < slot.hour) return false;
+  if (now.hour === slot.hour && now.minute < slot.minute) return false;
+  return true;
+}
+
 async function sendDashboardToSubscribers(label) {
   const subscribers = getAllSubscribers();
   if (!subscribers.length) {
@@ -253,6 +259,20 @@ async function sendAllMoodPromptSlots(force = false) {
   }
 }
 
+async function sendDueMoodPromptNow(force = false) {
+  const now = getIstParts();
+  const state = force ? { sentSlots: {} } : await getSchedulerState(now.date);
+  const sentSlots = state.sentSlots || {};
+
+  for (const slot of getMoodPromptSlots()) {
+    const stateKey = `mood_${slot.key}`;
+    if (!isMoodSlotDue(now, slot)) continue;
+    if (!force && sentSlots[stateKey]) continue;
+
+    await sendMoodPromptSlot(slot.key, force);
+  }
+}
+
 function telegramChatId(value) {
   return String(value).replace(/^telegram:/, '');
 }
@@ -309,6 +329,7 @@ module.exports = {
   sendReminderSlot,
   sendMoodPromptSlot,
   sendAllMoodPromptSlots,
+  sendDueMoodPromptNow,
   sendWeeklyExcel,
   sendMonthlyExcel,
   getMoodPromptSlots,
